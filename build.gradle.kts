@@ -1,5 +1,11 @@
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.kotlin.compose)
+}
+
+repositories {
+    mavenCentral()
+    google()
 }
 
 kotlin {
@@ -27,6 +33,7 @@ kotlin {
             implementation(libs.clikt)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.datetime)
+            implementation(libs.mosaic)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test.core)
