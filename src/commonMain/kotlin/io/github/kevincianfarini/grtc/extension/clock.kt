@@ -12,19 +12,18 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
-import kotlin.time.Instant
 
 @OptIn(ExperimentalTime::class)
 @Composable
-public fun Clock.PulseEffect(
-    timeZone: TimeZone = TimeZone.UTC,
+public fun ZonedClock.PulseEffect(
+    vararg keys: Any?,
+    timeZone: TimeZone = timeZone(),
     atSecond: Int? = null,
     atMinute: Int? = null,
     atHour: Int? = null,
     onDayOfMonth: Int? = null,
     inMonth: Month? = null,
     onDayOfWeek: DayOfWeek? = null,
-    vararg keys: Any?,
     block: suspend CoroutineScope.(LocalDateTime) -> Unit,
 ) {
     LaunchedEffect(this, timeZone, atSecond, atMinute, atHour, onDayOfMonth, inMonth, onDayOfWeek, *keys) {
@@ -43,4 +42,4 @@ public interface ZonedClock : Clock {
     }
 }
 
-public fun ZonedClock.localNow(): LocalDateTime = now().toLocalDateTime(timeZone())
+public fun ZonedClock.nowLocal(): LocalDateTime = now().toLocalDateTime(timeZone())
