@@ -12,6 +12,7 @@ import com.jakewharton.mosaic.layout.width
 import com.jakewharton.mosaic.modifier.Modifier
 import com.jakewharton.mosaic.runMosaicMain
 import com.jakewharton.mosaic.ui.Box
+import io.github.kevincianfarini.grtc.extension.ZonedClock
 import io.github.kevincianfarini.grtc.presenter.GrtcStopListPresenter
 import io.github.kevincianfarini.grtc.screen.GrtcTransitListScreen
 
@@ -27,7 +28,7 @@ private class GrtcTransitTerminal : CliktCommand() {
         if (stops.isEmpty()) {
             throw CliktError("You must provide at least one stop number.")
         }
-        val presenter = GrtcStopListPresenter(stops)
+        val presenter = GrtcStopListPresenter(stops, ZonedClock.System)
         presentGrtcTransitApplication(presenter)
     }
 }

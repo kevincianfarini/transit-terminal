@@ -30,9 +30,8 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            implementation(libs.cardiologist)
             implementation(libs.clikt)
-            implementation(libs.kotlinx.coroutines.core)
-            implementation(libs.kotlinx.datetime)
             implementation(libs.mosaic)
         }
         commonTest.dependencies {

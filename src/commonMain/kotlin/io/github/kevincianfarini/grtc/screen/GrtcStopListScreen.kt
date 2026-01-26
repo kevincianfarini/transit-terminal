@@ -9,6 +9,6 @@ import io.github.kevincianfarini.grtc.state.GrtcStopListState
 public fun GrtcTransitListScreen(state: GrtcStopListState) {
     Column {
         Text(state.stops.joinToString())
-        Text(state.count.toString())
+        Text(state.currentSecond.toString())
     }
 }
