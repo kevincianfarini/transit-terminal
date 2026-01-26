@@ -1,4 +1,4 @@
-rootProject.name = "cardiologist"
+rootProject.name = "grtc-terminal"
 
 pluginManagement {
     repositories {
