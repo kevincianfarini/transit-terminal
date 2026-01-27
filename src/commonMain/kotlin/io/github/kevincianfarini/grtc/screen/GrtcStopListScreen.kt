@@ -59,7 +59,7 @@ private fun getLoadingText(): String {
     var progress by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
         while (true) {
-            delay(75)
+            delay(90)
             progress = (progress + 1) % 6
         }
     }

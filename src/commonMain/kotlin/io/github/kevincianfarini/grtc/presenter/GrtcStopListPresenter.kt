@@ -16,6 +16,7 @@ import io.github.kevincianfarini.grtc.state.GrtcStopArrival
 import io.github.kevincianfarini.grtc.state.GrtcStopListScreenState
 import io.github.kevincianfarini.grtc.state.GrtcStopState
 import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalTime
 import kotlinx.datetime.format
 import kotlinx.datetime.format.MonthNames
 import kotlinx.datetime.format.char
@@ -34,7 +35,7 @@ public class GrtcStopListPresenter(
         clock.PulseEffect { localOccurrance -> localNow = localOccurrance }
         return GrtcStopListScreenState(
             stops = stops.map { presentTransitStop(it) },
-            currentTime = localNow.format(TIME_FORMAT)
+            currentTime = localNow.format(DATE_TIME_FORMAT)
         )
     }
 
@@ -53,16 +54,20 @@ public class GrtcStopListPresenter(
     }
 }
 
-private val TIME_FORMAT = LocalDateTime.Format {
-    monthName(MonthNames.ENGLISH_ABBREVIATED)
-    char(' ')
-    day()
-    char(' ')
+private val TIME_FORMAT = LocalTime.Format {
     hour()
     char(':')
     minute()
     char(':')
     second()
+}
+
+private val DATE_TIME_FORMAT = LocalDateTime.Format {
+    monthName(MonthNames.ENGLISH_ABBREVIATED)
+    char(' ')
+    day()
+    char(' ')
+    time(TIME_FORMAT)
 }
 
 private fun Response<GrtcResponse, Nothing>.mapToGrtcStopState(): GrtcStopState {
@@ -72,7 +77,7 @@ private fun Response<GrtcResponse, Nothing>.mapToGrtcStopState(): GrtcStopState 
             stopName = data.predictions.first().stopName,
             predictedArrivals = data.predictions.map { prediction ->
                 GrtcStopArrival(
-                    arrivalTime = prediction.predictedArrivalTime.format(TIME_FORMAT),
+                    arrivalTime = prediction.predictedArrivalTime.time.format(TIME_FORMAT),
                     durationUntilArrival = "5 MIN",
                 )
             }
