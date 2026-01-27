@@ -52,7 +52,6 @@ public class GrtcStopListPresenter(
                 .mapToGrtcStopState(clock.now(), clock.timeZone())
         }
         clock.PulseEffect(atSecond = 0) {
-            transitStop = GrtcStopState.Loading
             transitStop = repository.getBusStopSchedulePredictions(stopNumber, clock.now())
                 .mapToGrtcStopState(clock.now(), clock.timeZone())
         }
