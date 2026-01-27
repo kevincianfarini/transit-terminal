@@ -25,7 +25,12 @@ public fun GrtcTransitListScreen(state: GrtcStopListScreenState) {
 
 @Composable
 private fun TransitStop(stop: GrtcStopState) {
-    BorderedTitledBox(title = stop.toString(), titleColor = Color.White, borderColor = Color.White) {
-
+    val title = when (stop) {
+        is GrtcStopState.Loaded -> stop.stopName
+        is GrtcStopState.Loading -> "Loading..."
+        is GrtcStopState.Error -> stop.message
+    }
+    BorderedTitledBox(title = title, titleColor = Color.White, borderColor = Color.White) {
+        
     }
 }

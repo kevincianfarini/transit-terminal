@@ -2,6 +2,15 @@ package io.github.kevincianfarini.grtc.state
 
 public sealed interface GrtcStopState {
     public data object Loading : GrtcStopState
-    public data class Loaded(val stopNumber: Int) : GrtcStopState
-    public data class NetworkError(val statusCode: Int, val message: String) : GrtcStopState
+    public data class Loaded(
+        val stopNumber: Int,
+        val stopName: String,
+        val predictedArrivals: List<GrtcStopArrival>,
+    ) : GrtcStopState
+    public data class Error(val message: String) : GrtcStopState
 }
+
+public data class GrtcStopArrival(
+    val arrivalTime: String,
+    val durationUntilArrival: String,
+)
