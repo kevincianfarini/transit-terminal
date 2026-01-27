@@ -17,10 +17,14 @@ import io.github.kevincianfarini.grtc.state.GrtcStopListScreenState
 import io.github.kevincianfarini.grtc.state.GrtcStopState
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
+import kotlinx.datetime.TimeZone
 import kotlinx.datetime.format
 import kotlinx.datetime.format.MonthNames
 import kotlinx.datetime.format.char
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 @OptIn(ExperimentalTime::class)
 public class GrtcStopListPresenter(
@@ -35,7 +39,7 @@ public class GrtcStopListPresenter(
         clock.PulseEffect { localOccurrance -> localNow = localOccurrance }
         return GrtcStopListScreenState(
             stops = stops.map { presentTransitStop(it) },
-            currentTime = localNow.format(DATE_TIME_FORMAT)
+            currentTime = localNow.format(NOW_DATE_TIME_FORMAT)
         )
     }
 
@@ -44,17 +48,29 @@ public class GrtcStopListPresenter(
         var transitStop: GrtcStopState by remember(stopNumber) { mutableStateOf(GrtcStopState.Loading) }
         LaunchedEffect(Unit) {
             transitStop = GrtcStopState.Loading
-            transitStop = repository.getBusStopSchedulePredictions(stopNumber).mapToGrtcStopState()
+            transitStop = repository.getBusStopSchedulePredictions(stopNumber, clock.now())
+                .mapToGrtcStopState(clock.now(), clock.timeZone())
         }
         clock.PulseEffect(atSecond = 0) {
             transitStop = GrtcStopState.Loading
-            transitStop = repository.getBusStopSchedulePredictions(stopNumber).mapToGrtcStopState()
+            transitStop = repository.getBusStopSchedulePredictions(stopNumber, clock.now())
+                .mapToGrtcStopState(clock.now(), clock.timeZone())
         }
         return transitStop
     }
 }
 
-private val TIME_FORMAT = LocalTime.Format {
+private val STOP_ARRIVAL_TIME_FORMAT = LocalTime.Format {
+    hour()
+    char(':')
+    minute()
+}
+
+private val NOW_DATE_TIME_FORMAT = LocalDateTime.Format {
+    monthName(MonthNames.ENGLISH_ABBREVIATED)
+    char(' ')
+    day()
+    char(' ')
     hour()
     char(':')
     minute()
@@ -62,27 +78,28 @@ private val TIME_FORMAT = LocalTime.Format {
     second()
 }
 
-private val DATE_TIME_FORMAT = LocalDateTime.Format {
-    monthName(MonthNames.ENGLISH_ABBREVIATED)
-    char(' ')
-    day()
-    char(' ')
-    time(TIME_FORMAT)
-}
-
-private fun Response<GrtcResponse, Nothing>.mapToGrtcStopState(): GrtcStopState {
+private fun Response<GrtcResponse, Nothing>.mapToGrtcStopState(now: Instant, timeZone: TimeZone): GrtcStopState {
     return when (this) {
         is Response.Success -> GrtcStopState.Loaded(
             stopNumber = data.predictions.first().stopNumber,
             stopName = data.predictions.first().stopName,
             predictedArrivals = data.predictions.map { prediction ->
                 GrtcStopArrival(
-                    arrivalTime = prediction.predictedArrivalTime.time.format(TIME_FORMAT),
-                    durationUntilArrival = "5 MIN",
+                    arrivalTime = prediction.predictedArrivalTime
+                        .toLocalDateTime(timeZone)
+                        .time
+                        .format(STOP_ARRIVAL_TIME_FORMAT),
+                    durationUntilArrival = (prediction.predictedArrivalTime - now).inFormattedMinutes,
                 )
             }
         )
         is Response.Failure.HttpFailure -> GrtcStopState.Error("FAILED: HTTP $statusCode")
+        is Response.Failure.NetworkError -> GrtcStopState.Error("FAILED: ${e.message}")
+        is Response.Failure.DeserializationError -> GrtcStopState.Error("FAILED: ${e.message}")
         else -> GrtcStopState.Error("FAILED")
     }
+}
+
+private val Duration.inFormattedMinutes: String get() {
+    return "$inWholeMinutes MIN"
 }

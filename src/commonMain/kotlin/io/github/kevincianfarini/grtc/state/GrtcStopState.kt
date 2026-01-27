@@ -3,7 +3,7 @@ package io.github.kevincianfarini.grtc.state
 public sealed interface GrtcStopState {
     public data object Loading : GrtcStopState
     public data class Loaded(
-        val stopNumber: Int,
+        val stopNumber: String,
         val stopName: String,
         val predictedArrivals: List<GrtcStopArrival>,
     ) : GrtcStopState

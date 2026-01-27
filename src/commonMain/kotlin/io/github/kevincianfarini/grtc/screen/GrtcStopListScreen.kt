@@ -6,8 +6,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.jakewharton.mosaic.LocalTerminalState
 import com.jakewharton.mosaic.layout.fillMaxSize
+import com.jakewharton.mosaic.layout.width
 import com.jakewharton.mosaic.modifier.Modifier
+import com.jakewharton.mosaic.ui.Alignment
 import com.jakewharton.mosaic.ui.Color
 import com.jakewharton.mosaic.ui.Column
 import com.jakewharton.mosaic.ui.Row
@@ -37,11 +40,11 @@ private fun TransitStop(stop: GrtcStopState) {
     val (title, color) = when (stop) {
         is GrtcStopState.Loaded -> Pair(stop.stopName, Color.White)
         is GrtcStopState.Loading -> Pair(getLoadingText(), Color.White)
-        is GrtcStopState.Error -> Pair(stop.message, Color.Red)
+        is GrtcStopState.Error -> Pair("FAILED", Color.Red)
     }
     BorderedTitledBox(title = title, titleColor = color, borderColor = color) {
-        if (stop is GrtcStopState.Loaded) {
-            Column {
+        when (stop) {
+            is GrtcStopState.Loaded -> Column {
                 stop.predictedArrivals.forEach { arrival ->
                     Row {
                         Text(arrival.arrivalTime)
@@ -50,6 +53,11 @@ private fun TransitStop(stop: GrtcStopState) {
                     }
                 }
             }
+            is GrtcStopState.Error -> Text(
+                value = stop.message,
+                modifier = Modifier.align(Alignment.Center).width(LocalTerminalState.current.size.columns / 2)
+            )
+            else -> Unit
         }
     }
 }

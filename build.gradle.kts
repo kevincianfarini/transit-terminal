@@ -1,6 +1,7 @@
 plugins {
-    alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 repositories {
@@ -13,6 +14,7 @@ kotlin {
     compilerOptions { allWarningsAsErrors.set(true) }
     explicitApi()
 
+    jvm()
     linuxArm64 {
         binaries {
             executable {
@@ -32,8 +34,11 @@ kotlin {
         commonMain.dependencies {
             implementation(libs.cardiologist)
             implementation(libs.clikt)
+            implementation(libs.kotlinx.serialization)
+            implementation(libs.ktor)
             implementation(libs.mosaic)
             implementation(libs.mosaic.animation)
+            implementation(libs.okio)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test.core)

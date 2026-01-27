@@ -3,16 +3,23 @@ cardiologist = "0.8.0"
 clikt = "5.1.0"
 kotlin = "2.3.0"
 kotlinx-coroutines = "1.10.2"
+kotlinx-serialization = "1.9.0"
+ktor = "3.4.0"
 mosaic = "0.18.0"
+okio = "3.16.2"
 
 [libraries]
 cardiologist = { module = "io.github.kevincianfarini.cardiologist:cardiologist", version.ref = "cardiologist" }
 clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
 kotlin-test-core = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
+kotlinx-serialization = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+ktor = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
 mosaic = { module = "com.jakewharton.mosaic:mosaic-runtime", version.ref = "mosaic" }
 mosaic-animation = { module = "com.jakewharton.mosaic:mosaic-animation", version.ref = "mosaic" }
+okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
 
 [plugins]
-kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
