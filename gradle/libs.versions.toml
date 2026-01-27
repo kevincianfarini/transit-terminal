@@ -11,6 +11,7 @@ clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
 kotlin-test-core = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 mosaic = { module = "com.jakewharton.mosaic:mosaic-runtime", version.ref = "mosaic" }
+mosaic-animation = { module = "com.jakewharton.mosaic:mosaic-animation", version.ref = "mosaic" }
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

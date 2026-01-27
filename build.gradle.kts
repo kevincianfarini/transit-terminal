@@ -33,6 +33,7 @@ kotlin {
             implementation(libs.cardiologist)
             implementation(libs.clikt)
             implementation(libs.mosaic)
+            implementation(libs.mosaic.animation)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test.core)
