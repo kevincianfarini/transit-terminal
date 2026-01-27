@@ -23,10 +23,8 @@ import kotlinx.datetime.format.MonthNames
 import kotlinx.datetime.format.char
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Duration
-import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
-@OptIn(ExperimentalTime::class)
 public class GrtcStopListPresenter(
     private val stops: List<Int>,
     private val clock: ZonedClock,
@@ -100,5 +98,8 @@ private fun Response<GrtcResponse, Nothing>.mapToGrtcStopState(now: Instant, tim
 }
 
 private val Duration.inFormattedMinutes: String get() {
-    return "$inWholeMinutes MIN"
+    return when  {
+        inWholeMinutes > 0 -> "$inWholeMinutes MIN"
+        else -> "DUE"
+    }
 }
