@@ -12,6 +12,8 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HeadersBuilder
 import io.ktor.http.isSuccess
 import io.ktor.utils.io.core.toByteArray
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.format
@@ -23,6 +25,7 @@ import kotlinx.io.IOException
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import okio.ByteString
+import kotlin.coroutines.coroutineContext
 import kotlin.time.Instant
 
 public interface GrtcStopRepository {
@@ -63,6 +66,9 @@ public class KtorGrtcStopRepository : GrtcStopRepository {
             client.get(request)
         } catch (e: IOException) {
             return Response.Failure.NetworkError(e)
+        } catch (e: Throwable) {
+            currentCoroutineContext().ensureActive()
+            return Response.Failure.UnknownError(e)
         }
         val body = try {
             json.decodeFromString(GrtcResponse.serializer(), response.bodyAsText())

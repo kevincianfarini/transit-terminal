@@ -6,9 +6,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import io.github.kevincianfarini.grtc.extension.PulseEffect
+import com.jakewharton.mosaic.text.AnnotatedString
+import com.jakewharton.mosaic.text.SpanStyle
+import com.jakewharton.mosaic.text.buildAnnotatedString
+import com.jakewharton.mosaic.text.withStyle
+import com.jakewharton.mosaic.ui.Color
+import io.github.kevincianfarini.cardiologist.schedulePulse
 import io.github.kevincianfarini.grtc.extension.ZonedClock
-import io.github.kevincianfarini.grtc.extension.nowLocal
 import io.github.kevincianfarini.grtc.networkModel.GrtcResponse
 import io.github.kevincianfarini.grtc.networkModel.Response
 import io.github.kevincianfarini.grtc.repository.GrtcStopRepository
@@ -23,8 +27,10 @@ import kotlinx.datetime.format.MonthNames
 import kotlinx.datetime.format.char
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Duration
+import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
+@OptIn(ExperimentalTime::class)
 public class GrtcStopListPresenter(
     private val stops: List<Int>,
     private val clock: ZonedClock,
@@ -33,27 +39,37 @@ public class GrtcStopListPresenter(
 
     @Composable
     public fun present(): GrtcStopListScreenState {
-        var localNow by remember { mutableStateOf(clock.nowLocal()) }
-        clock.PulseEffect { localOccurrance -> localNow = localOccurrance }
+        val now = produceNowState()
+        val grtcResponses = stops.map { produceGrtcResponseState(it) }
         return GrtcStopListScreenState(
-            stops = stops.map { presentTransitStop(it) },
-            currentTime = localNow.format(NOW_DATE_TIME_FORMAT)
+            stops = grtcResponses.map { it.mapToGrtcStopState(now, clock.timeZone()) },
+            currentTime = now.toLocalDateTime(clock.timeZone()).format(NOW_DATE_TIME_FORMAT),
         )
     }
 
     @Composable
-    private fun presentTransitStop(stopNumber: Int): GrtcStopState {
-        var transitStop: GrtcStopState by remember(stopNumber) { mutableStateOf(GrtcStopState.Loading) }
+    private fun produceNowState(): Instant {
+        var now by remember { mutableStateOf(clock.now()) }
+        LaunchedEffect(clock) {
+            clock.schedulePulse(clock.timeZone()).beat { occurred ->
+                now = occurred
+            }
+        }
+        return now
+    }
+
+    @Composable
+    private fun produceGrtcResponseState(stopNumber: Int): Response<GrtcResponse, Nothing>? {
+        var response by remember(stopNumber) { mutableStateOf<Response<GrtcResponse, Nothing>?>(null) }
         LaunchedEffect(Unit) {
-            transitStop = GrtcStopState.Loading
-            transitStop = repository.getBusStopSchedulePredictions(stopNumber, clock.now())
-                .mapToGrtcStopState(clock.now(), clock.timeZone())
+            response = repository.getBusStopSchedulePredictions(stopNumber, clock.now())
         }
-        clock.PulseEffect(atSecond = 0) {
-            transitStop = repository.getBusStopSchedulePredictions(stopNumber, clock.now())
-                .mapToGrtcStopState(clock.now(), clock.timeZone())
+        LaunchedEffect(clock) {
+            clock.schedulePulse(clock.timeZone()) { atSeconds(0, 30) }.beat {
+                response = repository.getBusStopSchedulePredictions(stopNumber, clock.now())
+            }
         }
-        return transitStop
+        return response
     }
 }
 
@@ -75,8 +91,9 @@ private val NOW_DATE_TIME_FORMAT = LocalDateTime.Format {
     second()
 }
 
-private fun Response<GrtcResponse, Nothing>.mapToGrtcStopState(now: Instant, timeZone: TimeZone): GrtcStopState {
+private fun Response<GrtcResponse, Nothing>?.mapToGrtcStopState(now: Instant, timeZone: TimeZone): GrtcStopState {
     return when (this) {
+        null -> GrtcStopState.Loading
         is Response.Success -> GrtcStopState.Loaded(
             stopNumber = data.predictions.first().stopNumber,
             stopName = data.predictions.first().stopName,
@@ -97,9 +114,24 @@ private fun Response<GrtcResponse, Nothing>.mapToGrtcStopState(now: Instant, tim
     }
 }
 
-private val Duration.inFormattedMinutes: String get() {
-    return when  {
-        inWholeMinutes > 0 -> "$inWholeMinutes MIN"
-        else -> "DUE"
+private val Duration.inFormattedMinutes: AnnotatedString get() {
+    return buildAnnotatedString {
+        when  {
+            inWholeMinutes <= 0 -> withStyle(SpanStyle(color = Color(255, 102, 102))) {
+                append("DUE")
+            }
+            inWholeMinutes <= 5 -> withStyle(SpanStyle(color = Color(255, 178, 102))) {
+                append(inWholeMinutes.toString())
+                append(" MIN")
+            }
+            inWholeMinutes <= 10 -> withStyle(SpanStyle(color = Color(255, 255, 102))) {
+                append(inWholeMinutes.toString())
+                append(" MIN")
+            }
+            else -> withStyle(SpanStyle(color = Color.White)) {
+                append(inWholeMinutes.toString())
+                append(" MIN")
+            }
+        }
     }
 }

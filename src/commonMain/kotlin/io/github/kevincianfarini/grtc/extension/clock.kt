@@ -1,37 +1,9 @@
 package io.github.kevincianfarini.grtc.extension
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import io.github.kevincianfarini.cardiologist.schedulePulse
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.coroutineScope
-import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.Month
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
-import kotlin.time.ExperimentalTime
-
-@OptIn(ExperimentalTime::class)
-@Composable
-public fun ZonedClock.PulseEffect(
-    vararg keys: Any?,
-    timeZone: TimeZone = timeZone(),
-    atSecond: Int? = null,
-    atMinute: Int? = null,
-    atHour: Int? = null,
-    onDayOfMonth: Int? = null,
-    inMonth: Month? = null,
-    onDayOfWeek: DayOfWeek? = null,
-    block: suspend CoroutineScope.(LocalDateTime) -> Unit,
-) {
-    LaunchedEffect(this, timeZone, atSecond, atMinute, atHour, onDayOfMonth, inMonth, onDayOfWeek, *keys) {
-        schedulePulse(timeZone, atSecond, atMinute, atHour, onDayOfMonth, inMonth, onDayOfWeek).beat { occurred ->
-            coroutineScope { block(occurred.toLocalDateTime(timeZone)) }
-        }
-    }
-}
 
 public interface ZonedClock : Clock {
 

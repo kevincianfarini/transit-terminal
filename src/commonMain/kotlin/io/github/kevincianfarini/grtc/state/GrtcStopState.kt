@@ -1,5 +1,7 @@
 package io.github.kevincianfarini.grtc.state
 
+import com.jakewharton.mosaic.text.AnnotatedString
+
 public sealed interface GrtcStopState {
     public data object Loading : GrtcStopState
     public data class Loaded(
@@ -12,5 +14,5 @@ public sealed interface GrtcStopState {
 
 public data class GrtcStopArrival(
     val arrivalTime: String,
-    val durationUntilArrival: String,
+    val durationUntilArrival: AnnotatedString,
 )
