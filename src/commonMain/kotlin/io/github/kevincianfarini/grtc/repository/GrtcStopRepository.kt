@@ -1,5 +1,7 @@
 package io.github.kevincianfarini.grtc.repository
 
+import io.github.kevincianfarini.grtc.networkModel.GrtcErrorResponse
+import io.github.kevincianfarini.grtc.networkModel.GrtcPredictionResponse
 import io.github.kevincianfarini.grtc.networkModel.GrtcResponse
 import io.github.kevincianfarini.grtc.networkModel.Response
 import io.ktor.client.HttpClient
@@ -23,14 +25,14 @@ import kotlinx.datetime.format.char
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.io.IOException
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import okio.ByteString
-import kotlin.coroutines.coroutineContext
 import kotlin.time.Instant
 
 public interface GrtcStopRepository {
 
-    public suspend fun getBusStopSchedulePredictions(stopNumber: Int, now: Instant): Response<GrtcResponse, Nothing>
+    public suspend fun getBusStopSchedulePredictions(stopNumber: Int, now: Instant): Response<GrtcPredictionResponse, GrtcErrorResponse>
 }
 
 public class KtorGrtcStopRepository : GrtcStopRepository {
@@ -56,7 +58,7 @@ public class KtorGrtcStopRepository : GrtcStopRepository {
     private val gmt = TimeZone.of("GMT")
     private val hmacKey = ByteString.of(*"ZSqCAFdU7bwxHJUHKYfQUxKin06hMxCK".toByteArray())
 
-    override suspend fun getBusStopSchedulePredictions(stopNumber: Int, now: Instant): Response<GrtcResponse, Nothing> {
+    override suspend fun getBusStopSchedulePredictions(stopNumber: Int, now: Instant): Response<GrtcPredictionResponse, GrtcErrorResponse> {
         val url = "http://new.grtcbustracker.com/bustime/api/v3/getpredictions?requestType=getpredictions&locale=en&stpid=$stopNumber&rtpidatafeed=bustime&top=20&key=Qskvu4Z5JDwGEVswqdAVkiA5B&format=json&xtime=${now.toEpochMilliseconds()}"
         val request = request {
             url(url)
@@ -71,12 +73,24 @@ public class KtorGrtcStopRepository : GrtcStopRepository {
             return Response.Failure.UnknownError(e)
         }
         val body = try {
-            json.decodeFromString(GrtcResponse.serializer(), response.bodyAsText())
-        } catch (e: SerializationException) {
-            return Response.Failure.DeserializationError(e)
+            json.decodeFromString(GrtcResponse.serializer(GrtcPredictionResponse.serializer()), response.bodyAsText())
+        } catch (_: SerializationException) {
+            try {
+                json.decodeFromString(GrtcResponse.serializer(GrtcErrorResponse.serializer()), response.bodyAsText())
+            } catch (e: SerializationException) {
+                return Response.Failure.DeserializationError(e)
+            }
         }
         return when {
-            response.status.isSuccess() -> Response.Success(body)
+            response.status.isSuccess() && body.response is GrtcPredictionResponse -> Response.Success(body.response)
+            response.status.isSuccess() && body.response is GrtcErrorResponse -> {
+                val firstErrorMessage = body.response.error.firstOrNull()?.message
+                if ("No arrival times" == firstErrorMessage || "No service scheduled" == firstErrorMessage) {
+                    Response.Success(GrtcPredictionResponse(emptyList()))
+                } else {
+                    Response.Failure.HttpFailure(response.status.value, body.response)
+                }
+            }
             else -> Response.Failure.HttpFailure(response.status.value, errorData = null)
         }
     }

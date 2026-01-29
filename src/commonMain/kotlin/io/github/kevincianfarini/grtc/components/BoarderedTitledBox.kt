@@ -41,7 +41,7 @@ public fun BorderedTitledBox(
 }
 
 @Stable
-private fun Modifier.border(
+public fun Modifier.border(
     topStart: Char = '┌',
     topEnd: Char = '┐',
     bottomStart: Char = '└',

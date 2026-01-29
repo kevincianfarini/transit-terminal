@@ -1,25 +1,28 @@
 package io.github.kevincianfarini.grtc.screen
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import com.jakewharton.mosaic.LocalTerminalState
 import com.jakewharton.mosaic.layout.fillMaxSize
+import com.jakewharton.mosaic.layout.fillMaxWidth
+import com.jakewharton.mosaic.layout.padding
+import com.jakewharton.mosaic.layout.requiredWidth
 import com.jakewharton.mosaic.layout.width
 import com.jakewharton.mosaic.modifier.Modifier
+import com.jakewharton.mosaic.text.AnnotatedString
 import com.jakewharton.mosaic.ui.Alignment
+import com.jakewharton.mosaic.ui.Box
 import com.jakewharton.mosaic.ui.Color
 import com.jakewharton.mosaic.ui.Column
 import com.jakewharton.mosaic.ui.Row
+import com.jakewharton.mosaic.ui.RowScope
 import com.jakewharton.mosaic.ui.Spacer
 import com.jakewharton.mosaic.ui.Text
 import io.github.kevincianfarini.grtc.components.BorderedTitledBox
+import io.github.kevincianfarini.grtc.components.border
+import io.github.kevincianfarini.grtc.components.produceAnimatedLoadingString
+import io.github.kevincianfarini.grtc.state.GrtcStopArrival
 import io.github.kevincianfarini.grtc.state.GrtcStopListScreenState
 import io.github.kevincianfarini.grtc.state.GrtcStopState
-import kotlinx.coroutines.delay
 
 @Composable
 public fun GrtcTransitListScreen(state: GrtcStopListScreenState) {
@@ -39,20 +42,12 @@ public fun GrtcTransitListScreen(state: GrtcStopListScreenState) {
 private fun TransitStop(stop: GrtcStopState) {
     val (title, color) = when (stop) {
         is GrtcStopState.Loaded -> Pair(stop.stopName, Color.White)
-        is GrtcStopState.Loading -> Pair(getLoadingText(), Color.White)
+        is GrtcStopState.Loading -> Pair("Loading ${produceAnimatedLoadingString()}", Color.White)
         is GrtcStopState.Error -> Pair("FAILED", Color.Red)
     }
-    BorderedTitledBox(title = title, titleColor = color, borderColor = color) {
+    BorderedTitledBox(title = title, titleColor = color, borderColor = color, modifier = Modifier.fillMaxWidth()) {
         when (stop) {
-            is GrtcStopState.Loaded -> Column {
-                stop.predictedArrivals.forEach { arrival ->
-                    Row {
-                        Text(arrival.arrivalTime)
-                        Spacer(Modifier.weight(1f))
-                        Text(arrival.durationUntilArrival)
-                    }
-                }
-            }
+            is GrtcStopState.Loaded -> TransitStopArrivals(stop.predictedArrivals)
             is GrtcStopState.Error -> Text(
                 value = stop.message,
                 modifier = Modifier.align(Alignment.Center).width(LocalTerminalState.current.size.columns / 2)
@@ -63,20 +58,32 @@ private fun TransitStop(stop: GrtcStopState) {
 }
 
 @Composable
-private fun getLoadingText(): String {
-    var progress by remember { mutableIntStateOf(0) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(90)
-            progress = (progress + 1) % 6
+private fun TransitStopArrivals(arrivals: List<GrtcStopArrival>) = when (arrivals.isEmpty()) {
+    true -> Text("No arrivals scheduled.", color = Color.Red)
+    false -> Column(modifier = Modifier.fillMaxWidth()) {
+        arrivals.forEach { arrival ->
+            Row(modifier = Modifier.fillMaxWidth()) {
+                VehicleIdText(arrival.vehicleId)
+                RouteInfoText(arrival.routeInfo)
+                ArrivalTimeText(arrival.arrivalTime)
+            }
         }
     }
-    return when (progress) {
-        0 -> "Loading ◜"
-        1 -> "Loading ◠"
-        2 -> "Loading ◝"
-        3 -> "Loading ◞"
-        4 -> "Loading ◡"
-        else -> "Loading ◟"
-    }
+}
+
+@Composable
+private fun VehicleIdText(vehicleId: String) = Box(modifier = Modifier.requiredWidth(9)) {
+    // Set this as a static width to help align the overall layout.
+    Text(value = vehicleId)
+}
+
+@Composable
+private fun RowScope.RouteInfoText(routeInfo: String) = Box(modifier = Modifier.weight(1f)) {
+    Text(routeInfo, modifier = Modifier.padding(horizontal = 5))
+}
+
+@Composable
+private fun ArrivalTimeText(arrivalTime: AnnotatedString) = Box(modifier = Modifier.requiredWidth(14)) {
+    // Set this as a static width to help align the overall layout.
+    Text(value = arrivalTime)
 }

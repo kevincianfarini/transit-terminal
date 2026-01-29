@@ -5,7 +5,6 @@ import com.jakewharton.mosaic.text.AnnotatedString
 public sealed interface GrtcStopState {
     public data object Loading : GrtcStopState
     public data class Loaded(
-        val stopNumber: String,
         val stopName: String,
         val predictedArrivals: List<GrtcStopArrival>,
     ) : GrtcStopState
@@ -13,6 +12,7 @@ public sealed interface GrtcStopState {
 }
 
 public data class GrtcStopArrival(
-    val arrivalTime: String,
-    val durationUntilArrival: AnnotatedString,
+    val arrivalTime: AnnotatedString,
+    val vehicleId: String,
+    val routeInfo: String,
 )

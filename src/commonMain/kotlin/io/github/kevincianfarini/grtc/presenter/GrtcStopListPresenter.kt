@@ -13,7 +13,8 @@ import com.jakewharton.mosaic.text.withStyle
 import com.jakewharton.mosaic.ui.Color
 import io.github.kevincianfarini.cardiologist.schedulePulse
 import io.github.kevincianfarini.grtc.extension.ZonedClock
-import io.github.kevincianfarini.grtc.networkModel.GrtcResponse
+import io.github.kevincianfarini.grtc.networkModel.GrtcErrorResponse
+import io.github.kevincianfarini.grtc.networkModel.GrtcPredictionResponse
 import io.github.kevincianfarini.grtc.networkModel.Response
 import io.github.kevincianfarini.grtc.repository.GrtcStopRepository
 import io.github.kevincianfarini.grtc.state.GrtcStopArrival
@@ -27,6 +28,7 @@ import kotlinx.datetime.format.MonthNames
 import kotlinx.datetime.format.char
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
@@ -40,9 +42,14 @@ public class GrtcStopListPresenter(
     @Composable
     public fun present(): GrtcStopListScreenState {
         val now = produceNowState()
-        val grtcResponses = stops.map { produceGrtcResponseState(it) }
+        val grtcResponses = stops.map { stopNumber ->
+            val response = produceGrtcResponseState(stopNumber)
+            Pair(produceGrtcStopName(response), response)
+        }
         return GrtcStopListScreenState(
-            stops = grtcResponses.map { it.mapToGrtcStopState(now, clock.timeZone()) },
+            stops = grtcResponses.map { (stopName, response) ->
+                response.mapToGrtcStopState(stopName, now, clock.timeZone())
+            },
             currentTime = now.toLocalDateTime(clock.timeZone()).format(NOW_DATE_TIME_FORMAT),
         )
     }
@@ -59,8 +66,15 @@ public class GrtcStopListPresenter(
     }
 
     @Composable
-    private fun produceGrtcResponseState(stopNumber: Int): Response<GrtcResponse, Nothing>? {
-        var response by remember(stopNumber) { mutableStateOf<Response<GrtcResponse, Nothing>?>(null) }
+    private fun produceGrtcStopName(response: Response<GrtcPredictionResponse, GrtcErrorResponse>?): String? {
+        var stopName by remember { mutableStateOf(response?.toGrtcStopName()) }
+        stopName = response?.toGrtcStopName() ?: stopName
+        return stopName
+    }
+
+    @Composable
+    private fun produceGrtcResponseState(stopNumber: Int): Response<GrtcPredictionResponse, GrtcErrorResponse>? {
+        var response by remember(stopNumber) { mutableStateOf<Response<GrtcPredictionResponse, GrtcErrorResponse>?>(null) }
         LaunchedEffect(Unit) {
             response = repository.getBusStopSchedulePredictions(stopNumber, clock.now())
         }
@@ -91,19 +105,40 @@ private val NOW_DATE_TIME_FORMAT = LocalDateTime.Format {
     second()
 }
 
-private fun Response<GrtcResponse, Nothing>?.mapToGrtcStopState(now: Instant, timeZone: TimeZone): GrtcStopState {
+private fun Response<GrtcPredictionResponse, GrtcErrorResponse>?.mapToGrtcStopState(stopName: String?, now: Instant, timeZone: TimeZone): GrtcStopState {
     return when (this) {
         null -> GrtcStopState.Loading
-        is Response.Success -> GrtcStopState.Loaded(
-            stopNumber = data.predictions.first().stopNumber,
-            stopName = data.predictions.first().stopName,
+        is Response.Success if stopName == null-> GrtcStopState.Loading
+        is Response.Success if stopName != null -> GrtcStopState.Loaded(
+            stopName = stopName,
             predictedArrivals = data.predictions.map { prediction ->
                 GrtcStopArrival(
-                    arrivalTime = prediction.predictedArrivalTime
-                        .toLocalDateTime(timeZone)
-                        .time
-                        .format(STOP_ARRIVAL_TIME_FORMAT),
-                    durationUntilArrival = (prediction.predictedArrivalTime - now).inFormattedMinutes,
+                    arrivalTime = buildAnnotatedString {
+                        val durationUntilArrival = prediction.predictedArrivalTime - now
+                        val localTime = prediction.predictedArrivalTime.toLocalDateTime(timeZone).time
+                        val color = when {
+                            !durationUntilArrival.isPositive() -> Color(255, 102, 102)
+                            durationUntilArrival <= 5.minutes -> Color(255, 178, 102)
+                            durationUntilArrival <= 10.minutes -> Color(255, 255, 102)
+                            else -> Color.White
+                        }
+                        val arrivalDurationString = when {
+                            !durationUntilArrival.isPositive() -> "DUE"
+                            else -> "${durationUntilArrival.inWholeMinutes} MIN"
+                        }
+                        withStyle(SpanStyle(color)) {
+                            append(localTime.format(STOP_ARRIVAL_TIME_FORMAT))
+                            append(" (")
+                            append(arrivalDurationString)
+                            append(")")
+                        }
+                    },
+                    vehicleId = prediction.vehicleId.takeIf { it.isNotBlank() } ?: "SCHEDULED",
+                    routeInfo = buildString {
+                        append(prediction.direction)
+                        append(" ➜ ")
+                        prediction.destination.split("\\s+".toRegex()).joinTo(buffer = this, separator = " ")
+                    }
                 )
             }
         )
@@ -114,24 +149,7 @@ private fun Response<GrtcResponse, Nothing>?.mapToGrtcStopState(now: Instant, ti
     }
 }
 
-private val Duration.inFormattedMinutes: AnnotatedString get() {
-    return buildAnnotatedString {
-        when  {
-            inWholeMinutes <= 0 -> withStyle(SpanStyle(color = Color(255, 102, 102))) {
-                append("DUE")
-            }
-            inWholeMinutes <= 5 -> withStyle(SpanStyle(color = Color(255, 178, 102))) {
-                append(inWholeMinutes.toString())
-                append(" MIN")
-            }
-            inWholeMinutes <= 10 -> withStyle(SpanStyle(color = Color(255, 255, 102))) {
-                append(inWholeMinutes.toString())
-                append(" MIN")
-            }
-            else -> withStyle(SpanStyle(color = Color.White)) {
-                append(inWholeMinutes.toString())
-                append(" MIN")
-            }
-        }
-    }
+private fun Response<GrtcPredictionResponse, GrtcErrorResponse>.toGrtcStopName(): String? = when (this) {
+    is Response.Success -> data.predictions.firstOrNull()?.stopName
+    is Response.Failure -> null
 }
