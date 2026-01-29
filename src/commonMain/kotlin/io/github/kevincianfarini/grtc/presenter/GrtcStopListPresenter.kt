@@ -6,7 +6,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import com.jakewharton.mosaic.text.AnnotatedString
 import com.jakewharton.mosaic.text.SpanStyle
 import com.jakewharton.mosaic.text.buildAnnotatedString
 import com.jakewharton.mosaic.text.withStyle
@@ -27,7 +26,6 @@ import kotlinx.datetime.format
 import kotlinx.datetime.format.MonthNames
 import kotlinx.datetime.format.char
 import kotlinx.datetime.toLocalDateTime
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -117,14 +115,15 @@ private fun Response<GrtcPredictionResponse, GrtcErrorResponse>?.mapToGrtcStopSt
                         val durationUntilArrival = prediction.predictedArrivalTime - now
                         val localTime = prediction.predictedArrivalTime.toLocalDateTime(timeZone).time
                         val color = when {
-                            !durationUntilArrival.isPositive() -> Color(255, 102, 102)
+                            durationUntilArrival <= 1.minutes -> Color(255, 102, 102)
                             durationUntilArrival <= 5.minutes -> Color(255, 178, 102)
                             durationUntilArrival <= 10.minutes -> Color(255, 255, 102)
                             else -> Color.White
                         }
                         val arrivalDurationString = when {
                             !durationUntilArrival.isPositive() -> "DUE"
-                            else -> "${durationUntilArrival.inWholeMinutes} MIN"
+                            durationUntilArrival.inWholeMinutes > 0 -> "${durationUntilArrival.inWholeMinutes} MIN"
+                            else -> "${durationUntilArrival.inWholeSeconds} SEC"
                         }
                         withStyle(SpanStyle(color)) {
                             append(localTime.format(STOP_ARRIVAL_TIME_FORMAT))
