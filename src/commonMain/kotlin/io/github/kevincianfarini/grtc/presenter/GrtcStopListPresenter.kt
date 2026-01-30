@@ -11,6 +11,8 @@ import com.jakewharton.mosaic.text.SpanStyle
 import com.jakewharton.mosaic.text.buildAnnotatedString
 import com.jakewharton.mosaic.text.withStyle
 import com.jakewharton.mosaic.ui.Color
+import io.github.kevincianfarini.cardiologist.PulseBackpressureStrategy
+import io.github.kevincianfarini.cardiologist.PulseBackpressureStrategy.Companion.CancelPrevious
 import io.github.kevincianfarini.cardiologist.schedulePulse
 import io.github.kevincianfarini.grtc.extension.ZonedClock
 import io.github.kevincianfarini.grtc.networkModel.GrtcErrorResponse
@@ -59,7 +61,7 @@ public class GrtcStopListPresenter(
     private fun produceNowState(): Instant {
         var now by remember { mutableStateOf(clock.now()) }
         LaunchedEffect(clock) {
-            clock.schedulePulse(clock.timeZone()).beat { occurred ->
+            clock.schedulePulse(clock.timeZone()).beat(CancelPrevious) { occurred ->
                 now = occurred
             }
         }
@@ -93,7 +95,9 @@ public class GrtcStopListPresenter(
             response = repository.getBusStopSchedulePredictions(stopNumber, clock.now())
         }
         LaunchedEffect(clock) {
-            clock.schedulePulse(clock.timeZone()) { atSeconds(0, 30) }.beat {
+            clock.schedulePulse(clock.timeZone()) {
+                atSeconds(0, 30)
+            }.beat(CancelPrevious) {
                 response = repository.getBusStopSchedulePredictions(stopNumber, clock.now())
             }
         }
