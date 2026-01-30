@@ -32,7 +32,7 @@ private class GrtcTransitTerminal : CliktCommand() {
         val presenter = GrtcStopListPresenter(
             stops = stops.map { it.toString() },
             clock = ZonedClock.System,
-            repository = KtorGrtcStopRepository()
+            repository = KtorGrtcStopRepository(ZonedClock.System)
         )
         presentGrtcTransitApplication(presenter)
     }

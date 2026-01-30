@@ -71,7 +71,7 @@ private fun TransitStopArrivals(
     vehicleStatusWidth: Int,
     arrivalTimeWidth: Int,
 ) = when (arrivals.isEmpty()) {
-    true -> Text("No arrivals scheduled.", color = Color.Red)
+    true -> Text("NO SCHEDULED ARRIVALS", color = Color(255, 102, 102))
     false -> Column(modifier = Modifier.fillMaxWidth()) {
         arrivals.forEach { arrival ->
             Row(modifier = Modifier.fillMaxWidth()) {

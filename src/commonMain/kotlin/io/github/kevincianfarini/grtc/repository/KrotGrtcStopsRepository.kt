@@ -7,7 +7,6 @@ import io.github.kevincianfarini.grtc.networkModel.GrtcRoute
 import io.github.kevincianfarini.grtc.networkModel.GrtcRouteDirection
 import io.github.kevincianfarini.grtc.networkModel.GrtcRouteDirectionsResponse
 import io.github.kevincianfarini.grtc.networkModel.GrtcRoutesResponse
-import io.github.kevincianfarini.grtc.networkModel.GrtcStop
 import io.github.kevincianfarini.grtc.networkModel.GrtcStopsResponse
 import io.github.kevincianfarini.grtc.networkModel.Response
 import io.ktor.client.HttpClient
@@ -33,10 +32,10 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import okio.ByteString
+import kotlin.time.Clock
 import kotlin.time.Instant
 
-
-public class KtorGrtcStopRepository : GrtcStopRepository {
+public class KtorGrtcStopRepository(private val clock: Clock) : GrtcStopRepository {
 
     private val client = HttpClient(CIO)
     private val json = Json { ignoreUnknownKeys = true }
@@ -59,7 +58,8 @@ public class KtorGrtcStopRepository : GrtcStopRepository {
     private val gmt = TimeZone.of("GMT")
     private val hmacKey = ByteString.of(*"ZSqCAFdU7bwxHJUHKYfQUxKin06hMxCK".toByteArray())
 
-    override suspend fun getRoutes(now: Instant): Response<GrtcRoutesResponse, GrtcErrorResponse> {
+    override suspend fun getRoutes(): Response<GrtcRoutesResponse, GrtcErrorResponse> {
+        val now = clock.now()
         val url = "http://new.grtcbustracker.com/bustime/api/v3/getroutes?requestType=getroutes&locale=en&key=Qskvu4Z5JDwGEVswqdAVkiA5B&format=json&xtime=${now.toEpochMilliseconds()}"
         return makeRequest(
             url = url,
@@ -70,9 +70,9 @@ public class KtorGrtcStopRepository : GrtcStopRepository {
     }
 
     override suspend fun getRouteDirections(
-        now: Instant,
         route: GrtcRoute
     ): Response<GrtcRouteDirectionsResponse, GrtcErrorResponse> {
+        val now = clock.now()
         val url = "http://new.grtcbustracker.com/bustime/api/v3/getdirections?requestType=getdirections&locale=en&rt=${route.route}&rtpidatafeed=bustime&key=Qskvu4Z5JDwGEVswqdAVkiA5B&format=json&xtime=${now.toEpochMilliseconds()}"
         return makeRequest(
             url = url,
@@ -83,10 +83,10 @@ public class KtorGrtcStopRepository : GrtcStopRepository {
     }
 
     override suspend fun getBusStops(
-        now: Instant,
         route: GrtcRoute,
         direction: GrtcRouteDirection
     ): Response<GrtcStopsResponse, GrtcErrorResponse> {
+        val now = clock.now()
         val url = "http://new.grtcbustracker.com/bustime/api/v3/getstops?requestType=getstops&locale=en&rt=${route.route}&dir=${direction.id.encodeURLPathPart()}&rtpidatafeed=bustime&key=Qskvu4Z5JDwGEVswqdAVkiA5B&format=json&xtime=${now.toEpochMilliseconds()}"
         return makeRequest(
             url = url,
@@ -96,9 +96,15 @@ public class KtorGrtcStopRepository : GrtcStopRepository {
         )
     }
 
-    override suspend fun getBusStopSchedulePredictions(stopNumber: String, now: Instant): Response<GrtcPredictionResponse, GrtcErrorResponse> {
+    override suspend fun getBusStopSchedulePredictions(stopNumber: String): Response<GrtcPredictionResponse, GrtcErrorResponse> {
+        val now = clock.now()
         val url = "http://new.grtcbustracker.com/bustime/api/v3/getpredictions?requestType=getpredictions&locale=en&stpid=$stopNumber&rtpidatafeed=bustime&top=20&key=Qskvu4Z5JDwGEVswqdAVkiA5B&format=json&xtime=${now.toEpochMilliseconds()}"
-        val response = makeRequest(url, now, bodySerializer = GrtcPredictionResponse.serializer(), errorSerializer = GrtcErrorResponse.serializer())
+        val response = makeRequest(
+            url,
+            now,
+            bodySerializer = GrtcPredictionResponse.serializer(),
+            errorSerializer = GrtcErrorResponse.serializer()
+        )
         return when (response) {
             is Response.Success -> response
             is Response.Failure.HttpFailure -> {
@@ -109,6 +115,7 @@ public class KtorGrtcStopRepository : GrtcStopRepository {
                     response
                 }
             }
+
             else -> response
         }
     }
@@ -142,8 +149,8 @@ public class KtorGrtcStopRepository : GrtcStopRepository {
                 Response.Failure.HttpFailure(
                     statusCode = response.status.value,
                     errorData = json.decodeFromString(
-                        GrtcResponse.serializer(errorSerializer),
-                        response.bodyAsText()
+                        deserializer = GrtcResponse.serializer(errorSerializer),
+                        string = response.bodyAsText()
                     ).response
                 )
             } catch (e: SerializationException) {

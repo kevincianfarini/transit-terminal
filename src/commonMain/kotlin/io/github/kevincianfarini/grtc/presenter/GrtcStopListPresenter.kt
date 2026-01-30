@@ -73,13 +73,12 @@ public class GrtcStopListPresenter(
     private fun produceGrtcStops(): Map<String, String> {
         val stopInfo: MutableMap<String, String> = remember { mutableStateMapOf() }
         LaunchedEffect(Unit) {
-            val now = clock.now()
             withContext(Dispatchers.Default) {
-                (repository.getRoutes(now) as Response.Success<GrtcRoutesResponse>).data.routes.forEach { route ->
+                (repository.getRoutes() as Response.Success<GrtcRoutesResponse>).data.routes.forEach { route ->
                     launch {
-                        (repository.getRouteDirections(now, route) as Response.Success<GrtcRouteDirectionsResponse>).data.directions.forEach { direction ->
+                        (repository.getRouteDirections(route) as Response.Success<GrtcRouteDirectionsResponse>).data.directions.forEach { direction ->
                             launch {
-                                (repository.getBusStops(now, route, direction) as Response.Success<GrtcStopsResponse>).data.stops.forEach { stop ->
+                                (repository.getBusStops(route, direction) as Response.Success<GrtcStopsResponse>).data.stops.forEach { stop ->
                                     stopInfo[stop.stopId] = stop.stopName
                                 }
                             }
@@ -95,13 +94,13 @@ public class GrtcStopListPresenter(
     private fun produceGrtcResponseState(stopNumber: String): Response<GrtcPredictionResponse, GrtcErrorResponse>? {
         var response by remember(stopNumber) { mutableStateOf<Response<GrtcPredictionResponse, GrtcErrorResponse>?>(null) }
         LaunchedEffect(Unit) {
-            response = repository.getBusStopSchedulePredictions(stopNumber, clock.now())
+            response = repository.getBusStopSchedulePredictions(stopNumber)
         }
         LaunchedEffect(clock) {
             clock.schedulePulse(clock.timeZone()) {
                 atSeconds(0, 30)
             }.beat(CancelPrevious) {
-                response = repository.getBusStopSchedulePredictions(stopNumber, clock.now())
+                response = repository.getBusStopSchedulePredictions(stopNumber)
             }
         }
         return response
