@@ -3,6 +3,7 @@ package io.github.kevincianfarini.grtc.presenter
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -14,11 +15,15 @@ import io.github.kevincianfarini.cardiologist.schedulePulse
 import io.github.kevincianfarini.grtc.extension.ZonedClock
 import io.github.kevincianfarini.grtc.networkModel.GrtcErrorResponse
 import io.github.kevincianfarini.grtc.networkModel.GrtcPredictionResponse
+import io.github.kevincianfarini.grtc.networkModel.GrtcRouteDirectionsResponse
+import io.github.kevincianfarini.grtc.networkModel.GrtcRoutesResponse
+import io.github.kevincianfarini.grtc.networkModel.GrtcStopsResponse
 import io.github.kevincianfarini.grtc.networkModel.Response
 import io.github.kevincianfarini.grtc.repository.GrtcStopRepository
 import io.github.kevincianfarini.grtc.state.GrtcStopArrival
 import io.github.kevincianfarini.grtc.state.GrtcStopListScreenState
 import io.github.kevincianfarini.grtc.state.GrtcStopState
+import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
@@ -32,7 +37,7 @@ import kotlin.time.Instant
 
 @OptIn(ExperimentalTime::class)
 public class GrtcStopListPresenter(
-    private val stops: List<Int>,
+    private val stops: List<String>,
     private val clock: ZonedClock,
     private val repository: GrtcStopRepository,
 ) {
@@ -40,13 +45,11 @@ public class GrtcStopListPresenter(
     @Composable
     public fun present(): GrtcStopListScreenState {
         val now = produceNowState()
-        val grtcResponses = stops.map { stopNumber ->
-            val response = produceGrtcResponseState(stopNumber)
-            Pair(produceGrtcStopName(response), response)
-        }
+        val grtcResponses = stops.associateWith { produceGrtcResponseState(it) }
+        val grtcStopInfo = produceGrtcStops()
         return GrtcStopListScreenState(
-            stops = grtcResponses.map { (stopName, response) ->
-                response.mapToGrtcStopState(stopName, now, clock.timeZone())
+            stops = grtcResponses.map { (stop, response) ->
+                response.mapToGrtcStopState(grtcStopInfo[stop], now, clock.timeZone())
             },
             currentTime = now.toLocalDateTime(clock.timeZone()).format(NOW_DATE_TIME_FORMAT),
         )
@@ -64,14 +67,27 @@ public class GrtcStopListPresenter(
     }
 
     @Composable
-    private fun produceGrtcStopName(response: Response<GrtcPredictionResponse, GrtcErrorResponse>?): String? {
-        var stopName by remember { mutableStateOf(response?.toGrtcStopName()) }
-        stopName = response?.toGrtcStopName() ?: stopName
-        return stopName
+    private fun produceGrtcStops(): Map<String, String> {
+        val stopInfo: MutableMap<String, String> = remember { mutableStateMapOf() }
+        LaunchedEffect(Unit) {
+            val now = clock.now()
+            (repository.getRoutes(now) as Response.Success<GrtcRoutesResponse>).data.routes.forEach { route ->
+                launch {
+                    (repository.getRouteDirections(now, route) as Response.Success<GrtcRouteDirectionsResponse>).data.directions.forEach { direction ->
+                        launch {
+                            (repository.getBusStops(now, route, direction) as Response.Success<GrtcStopsResponse>).data.stops.forEach { stop ->
+                                stopInfo[stop.stopId] = stop.stopName
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return stopInfo
     }
 
     @Composable
-    private fun produceGrtcResponseState(stopNumber: Int): Response<GrtcPredictionResponse, GrtcErrorResponse>? {
+    private fun produceGrtcResponseState(stopNumber: String): Response<GrtcPredictionResponse, GrtcErrorResponse>? {
         var response by remember(stopNumber) { mutableStateOf<Response<GrtcPredictionResponse, GrtcErrorResponse>?>(null) }
         LaunchedEffect(Unit) {
             response = repository.getBusStopSchedulePredictions(stopNumber, clock.now())
@@ -103,7 +119,12 @@ private val NOW_DATE_TIME_FORMAT = LocalDateTime.Format {
     second()
 }
 
-private fun Response<GrtcPredictionResponse, GrtcErrorResponse>?.mapToGrtcStopState(stopName: String?, now: Instant, timeZone: TimeZone): GrtcStopState {
+private fun Response<GrtcPredictionResponse, GrtcErrorResponse>?.mapToGrtcStopState(
+    stopName: String?,
+    now: Instant,
+    timeZone: TimeZone
+): GrtcStopState {
+
     return when (this) {
         null -> GrtcStopState.Loading
         is Response.Success if stopName == null-> GrtcStopState.Loading
@@ -132,8 +153,16 @@ private fun Response<GrtcPredictionResponse, GrtcErrorResponse>?.mapToGrtcStopSt
                             append(")")
                         }
                     },
-                    vehicleId = prediction.vehicleId.takeIf { it.isNotBlank() } ?: "SCHEDULED",
-                    routeInfo = buildString {
+                    vehicleStatus = buildAnnotatedString {
+                        when {
+                            prediction.delayed -> withStyle(SpanStyle(color = Color(255, 102, 102))) {
+                                append("DELAYED")
+                            }
+                            prediction.vehicleId.isBlank() -> append("SCHEDULED")
+                            else -> append("EN ROUTE")
+                        }
+                    },
+                    routeInfo = buildAnnotatedString {
                         append(prediction.direction)
                         append(" ➜ ")
                         prediction.destination.split("\\s+".toRegex()).joinTo(buffer = this, separator = " ")
@@ -146,9 +175,4 @@ private fun Response<GrtcPredictionResponse, GrtcErrorResponse>?.mapToGrtcStopSt
         is Response.Failure.DeserializationError -> GrtcStopState.Error("FAILED: ${e.message}")
         else -> GrtcStopState.Error("FAILED")
     }
-}
-
-private fun Response<GrtcPredictionResponse, GrtcErrorResponse>.toGrtcStopName(): String? = when (this) {
-    is Response.Success -> data.predictions.firstOrNull()?.stopName
-    is Response.Failure -> null
 }

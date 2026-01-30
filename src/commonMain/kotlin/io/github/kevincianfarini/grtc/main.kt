@@ -30,7 +30,7 @@ private class GrtcTransitTerminal : CliktCommand() {
             throw CliktError("You must provide at least one stop number.")
         }
         val presenter = GrtcStopListPresenter(
-            stops = stops,
+            stops = stops.map { it.toString() },
             clock = ZonedClock.System,
             repository = KtorGrtcStopRepository()
         )

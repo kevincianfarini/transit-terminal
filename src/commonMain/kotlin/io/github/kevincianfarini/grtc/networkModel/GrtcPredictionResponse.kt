@@ -28,6 +28,7 @@ public data class GrtcStopPrediction(
     @SerialName("des") val destination: String,
     @SerialName("rtdir") val direction: String,
     @SerialName("vid") val vehicleId: String,
+    @SerialName("dly") val delayed: Boolean,
 )
 
 private object GrtcTimestampDeserializer : KSerializer<Instant> {

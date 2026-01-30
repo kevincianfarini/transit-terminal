@@ -1,19 +1,23 @@
 package io.github.kevincianfarini
 
+import io.github.kevincianfarini.grtc.networkModel.GrtcRoute
+import io.github.kevincianfarini.grtc.networkModel.GrtcRouteDirection
+import io.github.kevincianfarini.grtc.networkModel.GrtcRouteDirectionsResponse
+import io.github.kevincianfarini.grtc.networkModel.GrtcRoutesResponse
+import io.github.kevincianfarini.grtc.networkModel.GrtcStopsResponse
+import io.github.kevincianfarini.grtc.networkModel.Response
 import io.github.kevincianfarini.grtc.repository.KtorGrtcStopRepository
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.time.Clock
-import kotlin.time.Instant
 
 class SomeTest {
 
     @Test
     fun test() = runTest {
-        KtorGrtcStopRepository().getBusStopSchedulePredictions(
-            stopNumber = 3523,
-            now = Clock.System.now()
-        )
+        val repository = KtorGrtcStopRepository()
+        val now = Clock.System.now()
+        repository.getBusStops(now, GrtcRoute("BRT"), GrtcRouteDirection("West Bound"))
     }
 }

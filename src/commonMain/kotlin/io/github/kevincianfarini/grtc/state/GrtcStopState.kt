@@ -13,6 +13,6 @@ public sealed interface GrtcStopState {
 
 public data class GrtcStopArrival(
     val arrivalTime: AnnotatedString,
-    val vehicleId: String,
-    val routeInfo: String,
+    val vehicleStatus: AnnotatedString,
+    val routeInfo: AnnotatedString,
 )
