@@ -21,8 +21,6 @@ public data class GrtcPredictionResponse(
 
 @Serializable
 public data class GrtcStopPrediction(
-    @SerialName("stpid") val stopNumber: String,
-    @SerialName("stpnm") val stopName: String,
     @SerialName("prdtm") @Serializable(with = GrtcTimestampDeserializer::class)
     val predictedArrivalTime: Instant,
     @SerialName("des") val destination: String,

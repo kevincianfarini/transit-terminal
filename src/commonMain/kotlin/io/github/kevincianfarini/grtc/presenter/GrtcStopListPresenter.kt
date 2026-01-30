@@ -11,7 +11,6 @@ import com.jakewharton.mosaic.text.SpanStyle
 import com.jakewharton.mosaic.text.buildAnnotatedString
 import com.jakewharton.mosaic.text.withStyle
 import com.jakewharton.mosaic.ui.Color
-import io.github.kevincianfarini.cardiologist.PulseBackpressureStrategy
 import io.github.kevincianfarini.cardiologist.PulseBackpressureStrategy.Companion.CancelPrevious
 import io.github.kevincianfarini.cardiologist.schedulePulse
 import io.github.kevincianfarini.grtc.extension.ZonedClock
@@ -25,7 +24,9 @@ import io.github.kevincianfarini.grtc.repository.GrtcStopRepository
 import io.github.kevincianfarini.grtc.state.GrtcStopArrival
 import io.github.kevincianfarini.grtc.state.GrtcStopListScreenState
 import io.github.kevincianfarini.grtc.state.GrtcStopState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
@@ -73,12 +74,14 @@ public class GrtcStopListPresenter(
         val stopInfo: MutableMap<String, String> = remember { mutableStateMapOf() }
         LaunchedEffect(Unit) {
             val now = clock.now()
-            (repository.getRoutes(now) as Response.Success<GrtcRoutesResponse>).data.routes.forEach { route ->
-                launch {
-                    (repository.getRouteDirections(now, route) as Response.Success<GrtcRouteDirectionsResponse>).data.directions.forEach { direction ->
-                        launch {
-                            (repository.getBusStops(now, route, direction) as Response.Success<GrtcStopsResponse>).data.stops.forEach { stop ->
-                                stopInfo[stop.stopId] = stop.stopName
+            withContext(Dispatchers.Default) {
+                (repository.getRoutes(now) as Response.Success<GrtcRoutesResponse>).data.routes.forEach { route ->
+                    launch {
+                        (repository.getRouteDirections(now, route) as Response.Success<GrtcRouteDirectionsResponse>).data.directions.forEach { direction ->
+                            launch {
+                                (repository.getBusStops(now, route, direction) as Response.Success<GrtcStopsResponse>).data.stops.forEach { stop ->
+                                    stopInfo[stop.stopId] = stop.stopName
+                                }
                             }
                         }
                     }
