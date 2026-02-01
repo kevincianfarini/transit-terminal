@@ -12,14 +12,7 @@ import kotlin.time.Instant
 
 public interface GrtcStopRepository {
 
-    public suspend fun getRoutes(): Response<GrtcRoutesResponse, GrtcErrorResponse>
-
-    public suspend fun getRouteDirections(route: GrtcRoute): Response<GrtcRouteDirectionsResponse, GrtcErrorResponse>
-
-    public suspend fun getBusStops(
-        route: GrtcRoute,
-        direction: GrtcRouteDirection
-    ): Response<GrtcStopsResponse, GrtcErrorResponse>
+    public suspend fun getBusStops(): Response<GrtcStopsResponse, GrtcErrorResponse>
 
     public suspend fun getBusStopSchedulePredictions(
         stopNumber: String
