@@ -8,6 +8,7 @@ import io.github.kevincianfarini.grtc.networkModel.GrtcRoute
 import io.github.kevincianfarini.grtc.networkModel.GrtcRouteDirection
 import io.github.kevincianfarini.grtc.networkModel.GrtcRouteDirectionsResponse
 import io.github.kevincianfarini.grtc.networkModel.GrtcRoutesResponse
+import io.github.kevincianfarini.grtc.networkModel.GrtcServiceBulletinResponse
 import io.github.kevincianfarini.grtc.networkModel.GrtcStopsResponse
 import io.github.kevincianfarini.grtc.networkModel.Response
 import io.github.kevincianfarini.grtc.networkModel.flatMapSuccess
@@ -66,23 +67,20 @@ public class KtorGrtcStopRepository(private val clock: Clock) : GrtcStopReposito
     override suspend fun getBusStops(): Response<GrtcStopsResponse, GrtcErrorResponse> = withContext(Dispatchers.Default) {
         getRoutes().flatMapSuccess { routeResponse ->
             routeResponse.routes.mapConcurrently { route ->
-                foo(route)
+                getRouteDirections(route).flatMapSuccess { directionsResponse ->
+                    directionsResponse.directions.mapConcurrently { direction ->
+                        getBusStops(route, direction)
+                    }.reduceResponses { acc, next ->
+                        GrtcStopsResponse(acc.stops + next.stops)
+                    }
+                }
             }.reduceResponses { acc, next -> GrtcStopsResponse(acc.stops + next.stops) }
         }
     }
 
-
-    private suspend fun foo(route: GrtcRoute): Response<GrtcStopsResponse, GrtcErrorResponse> {
-        return getRouteDirections(route).flatMapSuccess { directionsResponse ->
-            directionsResponse.directions.mapConcurrently { direction ->
-                getBusStops(route, direction)
-            }.reduceResponses { acc, next ->
-                GrtcStopsResponse(acc.stops + next.stops)
-            }
-        }
-    }
-
-    override suspend fun getBusStopSchedulePredictions(stopNumber: String): Response<GrtcPredictionResponse, GrtcErrorResponse> {
+    override suspend fun getBusStopSchedulePredictions(
+        stopNumber: String
+    ): Response<GrtcPredictionResponse, GrtcErrorResponse> {
         val now = clock.now()
         val url = "http://new.grtcbustracker.com/bustime/api/v3/getpredictions?requestType=getpredictions&locale=en&stpid=$stopNumber&rtpidatafeed=bustime&top=20&key=Qskvu4Z5JDwGEVswqdAVkiA5B&format=json&xtime=${now.toEpochMilliseconds()}"
         val response = makeRequest(
@@ -104,6 +102,17 @@ public class KtorGrtcStopRepository(private val clock: Clock) : GrtcStopReposito
 
             else -> response
         }
+    }
+
+    override suspend fun getServeBulletins(): Response<GrtcServiceBulletinResponse, GrtcErrorResponse> {
+        val now = clock.now()
+        val url = "http://new.grtcbustracker.com/bustime/api/v3/getservicebulletins?requestType=getservicebulletins&key=Qskvu4Z5JDwGEVswqdAVkiA5B&format=json&xtime=${now.toEpochMilliseconds()}"
+        return makeRequest(
+            url = url,
+            now = now,
+            bodySerializer = GrtcServiceBulletinResponse.serializer(),
+            errorSerializer = GrtcErrorResponse.serializer(),
+        )
     }
 
     private suspend fun getRoutes(): Response<GrtcRoutesResponse, GrtcErrorResponse> {

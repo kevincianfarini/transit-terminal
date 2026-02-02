@@ -4,6 +4,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-public data class GrtcPredictionResponse(
-    @SerialName("prd") val predictions: List<GrtcStopPrediction>,
+public data class GrtcServiceBulletinResponse(
+    @SerialName("sb") val serviceBulletins: List<GrtcServiceBulletin>
 )

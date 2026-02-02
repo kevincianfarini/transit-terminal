@@ -11,15 +11,19 @@ import com.jakewharton.mosaic.text.SpanStyle
 import com.jakewharton.mosaic.text.buildAnnotatedString
 import com.jakewharton.mosaic.text.withStyle
 import com.jakewharton.mosaic.ui.Color
+import com.jakewharton.mosaic.ui.TextStyle
 import io.github.kevincianfarini.cardiologist.PulseBackpressureStrategy.Companion.CancelPrevious
 import io.github.kevincianfarini.cardiologist.schedulePulse
 import io.github.kevincianfarini.grtc.extension.ZonedClock
 import io.github.kevincianfarini.grtc.networkModel.GrtcErrorResponse
 import io.github.kevincianfarini.grtc.networkModel.GrtcPredictionResponse
+import io.github.kevincianfarini.grtc.networkModel.GrtcServiceBulletinResponse
 import io.github.kevincianfarini.grtc.networkModel.GrtcStopsResponse
 import io.github.kevincianfarini.grtc.networkModel.Response
 import io.github.kevincianfarini.grtc.networkModel.fold
 import io.github.kevincianfarini.grtc.repository.GrtcStopRepository
+import io.github.kevincianfarini.grtc.state.GrtcServiceAlert
+import io.github.kevincianfarini.grtc.state.GrtcServiceAlertsState
 import io.github.kevincianfarini.grtc.state.GrtcStopArrival
 import io.github.kevincianfarini.grtc.state.GrtcStopListScreenState
 import io.github.kevincianfarini.grtc.state.GrtcStopState
@@ -52,6 +56,7 @@ public class GrtcStopListPresenter(
         return GrtcStopListScreenState(
             stops = grtcResponses.mapToGrtcStopState(grtcStopInfo, now, clock.timeZone()),
             currentTime = now.toLocalDateTime(clock.timeZone()).format(NOW_DATE_TIME_FORMAT),
+            alerts = produceGrtcAlertsState().mapToAlertState(clock.timeZone()),
         )
     }
 
@@ -93,15 +98,37 @@ public class GrtcStopListPresenter(
                 value = LoadingState.Loading
             )
         }
-        LaunchedEffect(Unit) {
+        LaunchedEffect(stopNumber) {
             loadingState = LoadingState.Loading
             loadingState = repository.getBusStopSchedulePredictions(stopNumber).toLoadingState()
+        }
+        LaunchedEffect(clock, stopNumber) {
+            clock.schedulePulse(clock.timeZone()) {
+                atSeconds(0, 30)
+            }.beat(CancelPrevious) {
+                loadingState = repository.getBusStopSchedulePredictions(stopNumber).toLoadingState()
+
+            }
+        }
+        return loadingState
+    }
+
+    @Composable
+    private fun produceGrtcAlertsState(): LoadingState<GrtcServiceBulletinResponse, Response.Failure<GrtcErrorResponse>> {
+        var loadingState by remember {
+            mutableStateOf<LoadingState<GrtcServiceBulletinResponse, Response.Failure<GrtcErrorResponse>>>(
+                value = LoadingState.Loading
+            )
+        }
+        LaunchedEffect(Unit) {
+            loadingState = LoadingState.Loading
+            loadingState = repository.getServeBulletins().toLoadingState()
         }
         LaunchedEffect(clock) {
             clock.schedulePulse(clock.timeZone()) {
                 atSeconds(0, 30)
             }.beat(CancelPrevious) {
-                loadingState = repository.getBusStopSchedulePredictions(stopNumber).toLoadingState()
+                loadingState = repository.getServeBulletins().toLoadingState()
 
             }
         }
@@ -195,6 +222,30 @@ private fun Map<String, LoadingState<GrtcPredictionResponse, Response.Failure<Gr
                 }
             },
             onFailure = { error -> error.mapToErrorString() }
+        )
+    )
+}
+
+private fun LoadingState<GrtcServiceBulletinResponse, Response.Failure<GrtcErrorResponse>>.mapToAlertState(
+    timeZone: TimeZone,
+): GrtcServiceAlertsState {
+    return GrtcServiceAlertsState(
+        alerts = map(
+            onSuccess = { response ->
+                response.serviceBulletins.map { bulletin ->
+                    GrtcServiceAlert(
+                        postedAt = buildAnnotatedString {
+                            withStyle(SpanStyle(textStyle = TextStyle.Bold)) {
+                                append(bulletin.posted.toLocalDateTime(timeZone).time.format(STOP_ARRIVAL_TIME_FORMAT))
+                            }
+                        },
+                        message = buildAnnotatedString {
+                            bulletin.detail.lines().joinTo(buffer = this, separator = " ")
+                        }
+                    )
+                }
+            },
+            onFailure = { it.mapToErrorString() }
         )
     )
 }

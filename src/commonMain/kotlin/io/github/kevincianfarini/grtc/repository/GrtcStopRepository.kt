@@ -6,6 +6,7 @@ import io.github.kevincianfarini.grtc.networkModel.GrtcRoute
 import io.github.kevincianfarini.grtc.networkModel.GrtcRouteDirection
 import io.github.kevincianfarini.grtc.networkModel.GrtcRouteDirectionsResponse
 import io.github.kevincianfarini.grtc.networkModel.GrtcRoutesResponse
+import io.github.kevincianfarini.grtc.networkModel.GrtcServiceBulletinResponse
 import io.github.kevincianfarini.grtc.networkModel.GrtcStopsResponse
 import io.github.kevincianfarini.grtc.networkModel.Response
 import kotlin.time.Instant
@@ -17,4 +18,6 @@ public interface GrtcStopRepository {
     public suspend fun getBusStopSchedulePredictions(
         stopNumber: String
     ): Response<GrtcPredictionResponse, GrtcErrorResponse>
+
+    public suspend fun getServeBulletins(): Response<GrtcServiceBulletinResponse, GrtcErrorResponse>
 }
