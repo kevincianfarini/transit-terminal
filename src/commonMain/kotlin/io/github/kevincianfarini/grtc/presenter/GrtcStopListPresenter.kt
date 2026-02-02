@@ -154,7 +154,7 @@ private fun Map<String, LoadingState<GrtcPredictionResponse, Response.Failure<Gr
         ),
         predictedArrivals = predictionData.map(
             onSuccess = { predictionResponse ->
-                predictionResponse.predictions.map { prediction ->
+                predictionResponse.predictions.take(3).map { prediction ->
                     GrtcStopArrival(
                         arrivalTime = buildAnnotatedString {
                             val durationUntilArrival = prediction.predictedArrivalTime - now
