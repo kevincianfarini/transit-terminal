@@ -25,6 +25,7 @@ import io.github.kevincianfarini.grtc.state.GrtcStopListScreenState
 import io.github.kevincianfarini.grtc.state.GrtcStopState
 import io.github.kevincianfarini.grtc.state.LoadingState
 import io.github.kevincianfarini.grtc.state.map
+import kotlinx.coroutines.yield
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
@@ -33,7 +34,6 @@ import kotlinx.datetime.format.MonthNames
 import kotlinx.datetime.format.char
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Duration.Companion.minutes
-import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
@@ -60,6 +60,7 @@ public class GrtcStopListPresenter(
         var now by remember { mutableStateOf(clock.now()) }
         LaunchedEffect(clock) {
             clock.schedulePulse(clock.timeZone()).beat(CancelPrevious) { occurred ->
+                yield()
                 now = occurred
             }
         }
