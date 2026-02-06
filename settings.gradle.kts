@@ -1,4 +1,4 @@
-rootProject.name = "grtc-terminal"
+rootProject.name = "transit-terminal"
 
 pluginManagement {
     repositories {
