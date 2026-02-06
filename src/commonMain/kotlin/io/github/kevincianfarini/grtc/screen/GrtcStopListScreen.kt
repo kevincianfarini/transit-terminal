@@ -1,6 +1,10 @@
 package io.github.kevincianfarini.grtc.screen
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.jakewharton.mosaic.layout.fillMaxSize
 import com.jakewharton.mosaic.layout.fillMaxWidth
 import com.jakewharton.mosaic.layout.padding
@@ -12,9 +16,12 @@ import com.jakewharton.mosaic.ui.Color
 import com.jakewharton.mosaic.ui.Column
 import com.jakewharton.mosaic.ui.Row
 import com.jakewharton.mosaic.ui.RowScope
+import com.jakewharton.mosaic.ui.Spacer
 import com.jakewharton.mosaic.ui.Text
 import io.github.kevincianfarini.grtc.components.BorderedTitledBox
+import io.github.kevincianfarini.grtc.components.MarqueeText
 import io.github.kevincianfarini.grtc.components.produceAnimatedLoadingString
+import io.github.kevincianfarini.grtc.state.GrtcServiceAlertsState
 import io.github.kevincianfarini.grtc.state.GrtcStopArrival
 import io.github.kevincianfarini.grtc.state.GrtcStopListScreenState
 import io.github.kevincianfarini.grtc.state.GrtcStopState
@@ -48,8 +55,35 @@ public fun GrtcTransitListScreen(state: GrtcStopListScreenState) {
             )
         }
         Column {
-            state.stops.forEach { stop -> TransitStop(stop, maxVehicleStatusWidth, maxArrivalTimeStatusWidth) }
+            state.stops.forEach { stop ->
+                TransitStop(stop, maxVehicleStatusWidth, maxArrivalTimeStatusWidth)
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            ServiceAlerts(state.alerts)
         }
+    }
+}
+
+@Composable
+private fun ServiceAlerts(alertState: GrtcServiceAlertsState) {
+    when (alertState.alerts) {
+        is LoadingState.Loaded if alertState.alerts.data.isNotEmpty() -> {
+            val alerts = alertState.alerts.data
+            var alertIndex by remember(alerts.size) { mutableIntStateOf(0) }
+            val alert = alerts[alertIndex]
+            BorderedTitledBox(
+                title = "ALERTS",
+                titleColor = Color.Red,
+                borderColor = Color.Red,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row {
+                    Text(alert.postedAt, modifier = Modifier.padding(right = 1), color = Color.Red)
+                    MarqueeText(alert.message, color = Color.Red) { alertIndex = (alertIndex + 1) % alerts.size }
+                }
+            }
+        }
+        else -> Unit
     }
 }
 
@@ -65,7 +99,7 @@ private fun TransitStop(stop: GrtcStopState, vehicleStatusWidth: Int, arrivalTim
     }
     BorderedTitledBox(title = title, titleColor = color, borderColor = color, modifier = Modifier.fillMaxWidth()) {
         when (stop.predictedArrivals) {
-            is LoadingState.Failed -> Text(stop.predictedArrivals.error)
+            is LoadingState.Failed -> MarqueeText(stop.predictedArrivals.error)
             is LoadingState.Loaded -> TransitStopArrivals(stop.predictedArrivals.data, vehicleStatusWidth, arrivalTimeWidth)
             LoadingState.Loading -> Unit
         }
@@ -78,7 +112,7 @@ private fun TransitStopArrivals(
     vehicleStatusWidth: Int,
     arrivalTimeWidth: Int,
 ) = when (arrivals.isEmpty()) {
-    true -> Text("NO SCHEDULED ARRIVALS", color = Color(255, 102, 102))
+    true -> MarqueeText("NO SCHEDULED ARRIVALS", color = Color(255, 102, 102))
     false -> Column(modifier = Modifier.fillMaxWidth()) {
         arrivals.forEach { arrival ->
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -101,7 +135,7 @@ private fun VehicleStatusText(
 
 @Composable
 private fun RowScope.RouteInfoText(routeInfo: AnnotatedString) = Box(modifier = Modifier.weight(1f)) {
-    Text(routeInfo, modifier = Modifier.padding(horizontal = 5))
+    MarqueeText(routeInfo, modifier = Modifier.padding(horizontal = 5))
 }
 
 @Composable

@@ -236,7 +236,9 @@ private fun LoadingState<GrtcServiceBulletinResponse, Response.Failure<GrtcError
                     GrtcServiceAlert(
                         postedAt = buildAnnotatedString {
                             withStyle(SpanStyle(textStyle = TextStyle.Bold)) {
+                                append("Posted at ")
                                 append(bulletin.posted.toLocalDateTime(timeZone).time.format(STOP_ARRIVAL_TIME_FORMAT))
+                                append(":")
                             }
                         },
                         message = buildAnnotatedString {
