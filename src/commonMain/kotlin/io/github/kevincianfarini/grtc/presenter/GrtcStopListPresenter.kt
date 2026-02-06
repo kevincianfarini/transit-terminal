@@ -82,8 +82,12 @@ public class GrtcStopListPresenter(
         LaunchedEffect(Unit) {
             loadingState = LoadingState.Loading
             loadingState = repository.getBusStops().fold(
-                transformSuccess = { LoadingState.Loaded(it) },
-                transformFailure = { LoadingState.Failed(it) }
+                transformSuccess = {
+                    LoadingState.Loaded(it)
+                },
+                transformFailure = {
+                    LoadingState.Failed(it)
+                }
             )
         }
         return loadingState
@@ -173,7 +177,7 @@ private fun Map<String, LoadingState<GrtcPredictionResponse, Response.Failure<Gr
                     append(
                         stopResponse.stops.firstNotNullOf { stop ->
                             stop.stopName.takeIf { stop.stopId == stopId }
-                        }
+                        }.uppercase()
                     )
                 }
             },
@@ -214,7 +218,7 @@ private fun Map<String, LoadingState<GrtcPredictionResponse, Response.Failure<Gr
                             }
                         },
                         routeInfo = buildAnnotatedString {
-                            append(prediction.direction)
+                            append(prediction.direction.uppercase())
                             append(" ➜ ")
                             prediction.destination.split("\\s+".toRegex()).joinTo(buffer = this, separator = " ")
                         }
